@@ -2,6 +2,10 @@
 
 An [MCP (Model Context Protocol)](https://modelcontextprotocol.io) server that gives Claude tools to look up Arc Raiders game data: items, crafting recipes, quests, enemies, hideout modules, and trader inventories.
 
+> **Heads up:** This project started as a learning exercise for building MCP servers - not a production tool. It's genuinely useful if you play Arc Raiders, but the data comes from community-maintained APIs that can lag behind patches, and some gaps exist (see [Known Limitations](#known-limitations)). Take the numbers as a solid starting point, not gospel. If something looks off, the game is probably right.
+>
+> If you're here to learn how MCP servers work, the [Developer Walkthrough](#how-it-works-a-developer-walkthrough) section breaks down every design decision from scratch.
+
 ---
 
 ## Example Conversations
