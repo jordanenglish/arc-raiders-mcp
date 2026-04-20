@@ -314,8 +314,8 @@ _wiki_enemy_lock = asyncio.Lock()
 
 
 def _parse_infobox(wikitext: str) -> dict:
-    """Extract key-value pairs from {{Infobox arc ...}} template."""
-    match = re.search(r"\{\{Infobox arc(.*?)\}\}", wikitext, re.DOTALL | re.IGNORECASE)
+    """Extract key-value pairs from any {{Infobox ...}} template."""
+    match = re.search(r"\{\{Infobox\s+\w+(.*?)\}\}", wikitext, re.DOTALL | re.IGNORECASE)
     if not match:
         return {}
     result = {}
@@ -403,6 +403,19 @@ async def wiki_enemy(name: str) -> dict | None:
     """Look up wiki enemy data by name (case-insensitive)."""
     catalog = await build_wiki_enemy_catalog()
     return catalog.get(name.lower())
+
+
+_TIER_SUFFIX = re.compile(r"\s+(?:I{1,3}V?|VI{0,3}|IV|IX|X)$")
+
+
+async def wiki_weapon(name: str) -> dict | None:
+    """
+    Look up wiki weapon data by display name.
+    Strips tier suffix before fetching (e.g. 'Anvil II' -> fetches 'Anvil' page).
+    Returns parsed infobox fields including headshotmultiplier.
+    """
+    base_name = _TIER_SUFFIX.sub("", name).strip()
+    return await _fetch_wiki_enemy(base_name)
 
 
 # ---------------------------------------------------------------------------

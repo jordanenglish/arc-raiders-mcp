@@ -186,6 +186,7 @@ async def get_item(name: str) -> str:
         weapon_specs = ardb_detail.get("weaponSpecs", {}) if ardb_detail else {}
         stats = weapon_specs.get("stats", {})
         bonuses = weapon_specs.get("bonuses", {})
+        wiki_weapon = await client.wiki_weapon(item_name)
 
         lines += ["", "### Weapon Stats"]
 
@@ -209,6 +210,10 @@ async def get_item(name: str) -> str:
             val = stats.get(field)
             if val is not None and val != 0:
                 lines.append(f"  - **{label}:** {val}")
+
+        # Headshot multiplier from wiki
+        if wiki_weapon and wiki_weapon.get("headshotmultiplier"):
+            lines.append(f"  - **Headshot Multiplier:** {wiki_weapon['headshotmultiplier']}")
 
         mag = weapon_specs.get("magSize") or stats.get("magazineSize")
         if mag:
