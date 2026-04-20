@@ -2,11 +2,49 @@
 
 An [MCP (Model Context Protocol)](https://modelcontextprotocol.io) server that gives Claude tools to look up Arc Raiders game data: items, crafting recipes, quests, enemies, hideout modules, and trader inventories.
 
-Ask Claude things like:
-- *"What's the best way to dispose of an Arpeggio II?"*
-- *"What do I need to craft an Adrenaline Shot?"*
-- *"What does the Sentinel drop?"*
-- *"How do I upgrade my Workbench to level 3?"*
+---
+
+## Example Conversations
+
+### "What's the best bang for buck weapon for PVP?"
+
+> The **Ferro I** stands out immediately. 475 coins, 40 damage per shot, strong armor penetration, 2.5× headshot multiplier. A headshot does 100 damage - one-shot kill on an unshielded player. The tradeoff is a 6.6 RPM fire rate (break-action), so every miss is painful. For players who want reliability over skill ceiling, the **Renegade IV** has a faster fire rate and kills any shield type in 3 headshots.
+
+---
+
+### "Compare TTK: Anvil IV vs Renegade IV against a medium shield"
+
+| | Anvil IV | Renegade IV |
+|--|---------|------------|
+| Damage | 40 | 35 |
+| Headshot Mult | 2.5× | 2.25× |
+| Fire Rate | 16.3 RPM | 21 RPM |
+| **Body TTK** | 4 shots, 11.04s | 4 shots, 8.57s |
+| **Headshot TTK** | **2 shots, 3.68s** | 3 shots, 5.71s |
+
+> Claude's take: *The Anvil IV is the better headshot weapon - 2 shots kills a medium shield player in 3.68s vs the Renegade's 3 shots at 5.71s. But the Renegade wins body shots by a wide margin. Two very different playstyles, both viable at tier IV.*
+
+---
+
+### "What's the best weapon vs a medium shield specifically?"
+
+> Ranked by headshot TTK against 70 charge / 42.5% mitigation:
+>
+> | Weapon | Cost | HS Shots | HS TTK |
+> |--------|------|---------|--------|
+> | Osprey I | 7,000 | 2 | **3.41s** |
+> | Anvil IV | 13,000 | 2 | 3.68s |
+> | Jupiter | 27,500 | 2 | 5.00s |
+> | Renegade IV | 17,000 | 3 | 5.71s |
+> | Il Toro I | 2,900 | ? | ? |
+>
+> The **Osprey I** is the surprise winner - cheaper than Anvil IV, faster TTK than Jupiter, and 2 headshots kills any medium shield player. The **Il Toro I** (shotgun) wins on body TTK at just 2,900 coins, but only works within its 20m range.
+
+---
+
+### "Does armor penetration affect player shields?"
+
+> No. ARC armor penetration only applies to ARC robot armor. Against player shields, what matters is base damage, headshot multiplier, and fire rate. The Bettina's "strong" armor penetration does nothing in PVP - which is why despite its high fire rate, it takes 10 shots and 16.88s to kill a medium shield player.
 
 ---
 
@@ -74,13 +112,15 @@ Or add it manually to your Claude Code config:
 | Tool | What it does |
 |------|-------------|
 | `search_items` | Search items by name. Optional filters for rarity and type. |
-| `get_item` | Full item details: description, sell/recycle/salvage values, vendor prices, crafting recipe, weapon stats. |
+| `get_item` | Full item details: description, sell/recycle/salvage values, vendor prices, crafting recipe, weapon stats, and headshot multiplier. |
 | `get_crafting_recipe` | Ingredients, station, level required, and profitability vs buying raw materials. |
 | `find_uses_for_item` | Reverse lookup: which recipes need this item, which traders accept it in barters. |
 | `get_quest` | Objectives, item rewards, XP, and position in the quest chain. |
 | `get_enemy` | Enemy stats (HP, armor, threat, weakness), XP rewards, spawn maps, and loot drops. |
 | `get_hideout_module` | Per-level upgrade requirements and total material cost for each hideout station. |
 | `get_trader_inventory` | Barter trades for a given trader (Lance, Celeste, Shani, Tian Wen, Apollo). |
+| `list_weapons` | All weapons with damage, headshot multiplier, fire rate, range, stability, armor pen, and sell value. Filter by type. |
+| `get_ttk` | Time-to-kill for any weapon against all four shield types (none/light/medium/heavy), for both body shots and headshots. Uses the exact damage formula from arcraiders.wiki. |
 
 ---
 
@@ -92,7 +132,7 @@ The server pulls from three external APIs and one wiki:
 |--------|-----|-----------------|
 | **arcdata** | `arcdata.mahcks.com/v1` | Economy data: item sell values, recipes, vendor prices, quests, bots, trades, hideout modules |
 | **ARDB** | `ardb.app/api` | Item and enemy catalog with display names (used as the search index) |
-| **arcraiders.wiki** | `arcraiders.wiki/w/api.php` | Enemy HP, armor, attack type (MediaWiki API, parsed from infobox templates) |
+| **arcraiders.wiki** | `arcraiders.wiki/w/api.php` | Weapon headshot multipliers, enemy HP/armor/attack type, shield damage formulas (MediaWiki API, parsed from infobox templates) |
 
 The APIs are community-maintained and unofficial. No API key is required.
 
