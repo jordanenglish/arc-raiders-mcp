@@ -572,19 +572,22 @@ async def get_enemy(name: str) -> str:
     Get info about an ARC enemy: type, threat level, HP, armor, weakness,
     XP rewards, attack type, which maps they appear on, and loot drops.
     """
-    bots, enemies, wiki = await asyncio.gather(
+    bots, enemies, wiki, rt_bots = await asyncio.gather(
         client.arcdata_bots(),
         client.ardb_enemies(),
         client.wiki_enemy(name),
+        client.raidtheory_bots(),
     )
     bot = client.find_best_match(name, bots)
     enemy = client.find_best_match(name, enemies)
+    rt_bot = client.find_best_match(name, rt_bots)
 
-    if not bot and not enemy and not wiki:
+    if not bot and not enemy and not wiki and not rt_bot:
         return f"Enemy '{name}' not found."
 
     display_name = (
         bot.get("name") if bot
+        else rt_bot.get("name") if rt_bot
         else enemy.get("name") if enemy
         else wiki.get("name", name) if wiki
         else name
@@ -592,9 +595,12 @@ async def get_enemy(name: str) -> str:
 
     lines = [f"## {display_name}"]
 
-    # --- Core stats (merge arcdata + wiki) ---
-    threat = bot.get("threat") if bot else wiki.get("threatLevel") if wiki else None
-    bot_type = bot.get("type") if bot else None
+    # --- Core stats (merge arcdata + raidtheory + wiki) ---
+    threat = (
+        bot.get("threat") or (rt_bot.get("threat") if rt_bot else None)
+        or (wiki.get("threatLevel") if wiki else None)
+    )
+    bot_type = (bot.get("type") if bot else None) or (rt_bot.get("type") if rt_bot else None)
     hp = wiki.get("health") if wiki else None
     armor = wiki.get("armor") if wiki else None
 
@@ -613,6 +619,8 @@ async def get_enemy(name: str) -> str:
     # XP
     if bot:
         lines.append(f"**XP on destroy:** {bot.get('destroyXp', 0):,}  |  **XP on loot:** {bot.get('lootXp', 0):,}")
+    elif rt_bot and (rt_bot.get("destroyXp") or rt_bot.get("lootXp")):
+        lines.append(f"**XP on destroy:** {rt_bot.get('destroyXp', 0):,}  |  **XP on loot:** {rt_bot.get('lootXp', 0):,}")
     elif wiki and wiki.get("xp"):
         lines.append(f"**XP:** {wiki['xp']}")
 
@@ -620,13 +628,22 @@ async def get_enemy(name: str) -> str:
     if wiki and wiki.get("pAttack"):
         lines.append(f"**Attack type:** {wiki['pAttack']}")
 
-    # Weakness
-    weakness = bot.get("weakness") if bot else wiki.get("weakness") if wiki else None
+    # Weakness (prefer RaidTheory — has detailed weak point descriptions)
+    weakness = (
+        (rt_bot.get("weakness") if rt_bot else None)
+        or (bot.get("weakness") if bot else None)
+        or (wiki.get("weakness") if wiki else None)
+    )
     if weakness:
         lines += ["", f"**Weakness:** {weakness}"]
 
+    # Description from RaidTheory (behavioral overview)
+    rt_desc = rt_bot.get("description", "") if rt_bot else ""
+    if rt_desc:
+        lines.append(f"**Description:** {rt_desc}")
+
     # Maps
-    maps = bot.get("maps", []) if bot else []
+    maps = (bot.get("maps", []) if bot else []) or (rt_bot.get("maps", []) if rt_bot else [])
     if maps:
         map_names = [m.replace("_", " ").title() for m in maps]
         lines.append(f"**Found on:** {', '.join(map_names)}")

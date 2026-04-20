@@ -492,6 +492,15 @@ async def raidtheory_skill_nodes() -> list[dict]:
         return []
 
 
+async def raidtheory_bots() -> list[dict]:
+    """Fetch bot data from RaidTheory/arcraiders-data (includes weakness, description, threat, XP)."""
+    try:
+        data = await _get(f"{RAIDTHEORY_BASE}/bots.json")
+        return data if isinstance(data, list) else []
+    except Exception:
+        return []
+
+
 async def arcraidershub_map_events() -> dict:
     """
     Fetch live map event schedule from arcraidershub.com.
