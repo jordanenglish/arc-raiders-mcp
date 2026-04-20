@@ -448,6 +448,22 @@ async def find_uses_for_item(name: str) -> str:
             trader = trade.get("trader", "?")
             lines.append(f"  - Trade {qty_needed}x to **{trader}** for {recv_qty}x {recv_name}")
 
+    # Check hideout module requirements
+    stubs = await client.arcdata_hideout_list()
+    modules = [m for m in await asyncio.gather(*[client.arcdata_hideout(s["id"]) for s in stubs]) if m]
+    hideout_uses = []
+    for module in modules:
+        module_name = client.name_en(module) or module.get("id", "?")
+        for level_data in module.get("levels", []):
+            for req in level_data.get("requirementItemIds", []):
+                if req.get("itemId") == target_id:
+                    hideout_uses.append((module_name, level_data.get("level", "?"), req.get("quantity", 1)))
+
+    if hideout_uses:
+        lines += ["", f"**Required for {len(hideout_uses)} hideout upgrade(s):**"]
+        for module_name, level, qty in hideout_uses:
+            lines.append(f"  - {qty}x for **{module_name}** level {level}")
+
     return "\n".join(lines)
 
 
