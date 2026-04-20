@@ -53,6 +53,7 @@ An [MCP (Model Context Protocol)](https://modelcontextprotocol.io) server that g
 - [Quickstart](#quickstart)
 - [Available Tools](#available-tools)
 - [Data Sources](#data-sources)
+- [Known Limitations](#known-limitations)
 - [How It Works: A Developer Walkthrough](#how-it-works-a-developer-walkthrough)
   - [What is MCP?](#what-is-mcp)
   - [Project Structure](#project-structure)
@@ -135,6 +136,27 @@ The server pulls from three external APIs and one wiki:
 | **arcraiders.wiki** | `arcraiders.wiki/w/api.php` | Weapon headshot multipliers, enemy HP/armor/attack type, shield damage formulas (MediaWiki API, parsed from infobox templates) |
 
 The APIs are community-maintained and unofficial. No API key is required.
+
+---
+
+## Known Limitations
+
+Not everything can be answered. Here's where the data runs out:
+
+**Enemy spawns**
+- The server can tell you *which maps* an enemy appears on, but not *where on the map* it spawns or how frequently.
+- Example: "Which map has the best chance to spawn a Bombardier?" - we can list Dam Battlegrounds, The Spaceport, The Blue Gate, and Buried City, but spawn weights and specific locations aren't tracked by any of our data sources.
+- For spawn locations, check community resources: interactive maps, Reddit guides, or YouTube.
+
+**Headshot multipliers for some weapons**
+- Multipliers are scraped from arcraiders.wiki. Weapons without a wiki page (or with incomplete infoboxes) return `?`.
+- Affected weapons currently include: Rattler, Bettina, Torrente, Il Toro, Vulcano, Dolabra, Canto, Bobcat.
+
+**Shotgun damage**
+- Shotgun damage values represent per-pellet damage. The total damage per shot depends on how many pellets connect, which isn't tracked.
+
+**Live/patch data**
+- All data sources are community-maintained and may lag behind game patches. Stats shown reflect the most recently updated community data, not necessarily the current live game.
 
 ---
 
