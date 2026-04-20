@@ -420,6 +420,47 @@ async def find_uses_for_item(name: str) -> str:
 
 
 @mcp.tool()
+async def list_quests(trader: str = "") -> str:
+    """
+    List all quests, optionally filtered by trader.
+    Shows quest name, XP reward, and whether it has item rewards.
+
+    Traders: Lance, Celeste, Shani, Tian Wen, Apollo
+    Leave blank to list all quests grouped by trader.
+    """
+    all_quests = await client.get_all_quests()
+
+    # Group by trader
+    by_trader: dict[str, list] = {}
+    for quest in all_quests.values():
+        t = quest.get("trader", "Unknown")
+        by_trader.setdefault(t, []).append(quest)
+
+    if trader:
+        filtered = {t: qs for t, qs in by_trader.items() if trader.lower() in t.lower()}
+        if not filtered:
+            available = ", ".join(sorted(by_trader))
+            return f"Trader '{trader}' not found. Available: {available}"
+        by_trader = filtered
+
+    lines = []
+    for t in sorted(by_trader):
+        lines.append(f"## {t}")
+        for q in by_trader[t]:
+            quest_name = client.name_en(q)
+            xp = q.get("xp", 0)
+            rewards = q.get("rewardItemIds", [])
+            reward_str = f" | {len(rewards)} item reward(s)" if rewards else ""
+            xp_str = f" | {xp:,} XP" if xp else ""
+            lines.append(f"  - {quest_name}{xp_str}{reward_str}")
+        lines.append("")
+
+    total = sum(len(qs) for qs in by_trader.values())
+    lines.insert(0, f"**{total} quest(s)**\n")
+    return "\n".join(lines)
+
+
+@mcp.tool()
 async def get_quest(name: str) -> str:
     """
     Get details for a quest: objectives, item rewards, XP, trader,

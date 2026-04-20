@@ -123,6 +123,7 @@ Or add it manually to your Claude Code config:
 | `get_crafting_recipe` | Ingredients, station, level required, and profitability vs buying raw materials. |
 | `find_uses_for_item` | Reverse lookup: which recipes need this item, which traders accept it in barters. |
 | `find_quests_for_item` | Which quests require this item in objectives, and which quests reward it. Great for "should I keep this?" decisions. |
+| `list_quests` | All quests grouped by trader, with XP and reward counts. Filter by trader name. |
 | `get_quest` | Objectives, item rewards, XP, and position in the quest chain. |
 | `get_enemy` | Enemy stats (HP, armor, threat, weakness), XP rewards, spawn maps, and loot drops. |
 | `get_hideout_module` | Per-level upgrade requirements and total material cost for each hideout station. |
