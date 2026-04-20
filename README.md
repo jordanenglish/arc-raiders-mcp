@@ -166,6 +166,11 @@ Not everything can be answered. Here's where the data runs out:
 **Shotgun damage**
 - Shotgun damage values represent per-pellet damage. The total damage per shot depends on how many pellets connect, which isn't tracked.
 
+**Raider Tool and default equipment**
+- The Raider Tool (breaching tool / melee weapon) is not in any of the community APIs. It's treated as default equipment rather than an inventory item, so it has no entry in ARDB or arcdata.
+- Known stats from arcraiders.wiki: 25 damage per swing, no headshot bonus, cannot run while swinging. Skill upgrades: Effortless Swing (reduced stamina), Sky-Clearing Swing (bonus drone damage), Flyswatter (one-shots Wasps and Turrets).
+- Other default equipment items (zipline, etc.) have the same gap.
+
 **Live/patch data**
 - All data sources are community-maintained and may lag behind game patches. Stats shown reflect the most recently updated community data, not necessarily the current live game.
 
