@@ -580,7 +580,8 @@ async def get_enemy(name: str) -> str:
     # Maps
     maps = bot.get("maps", []) if bot else []
     if maps:
-        lines.append(f"**Found on:** {', '.join(maps)}")
+        map_names = [m.replace("_", " ").title() for m in maps]
+        lines.append(f"**Found on:** {', '.join(map_names)}")
 
     # Loot drops
     drops_shown = False
@@ -720,6 +721,7 @@ async def get_hideout_module(name: str) -> str:
     lines = [
         f"## {module_name}",
         f"**Max level:** {max_level}",
+        "_Note: what each level unlocks is not available from the data source. Check arcraiders.wiki for crafting station unlock details._",
     ]
 
     for level_data in module.get("levels", []):
