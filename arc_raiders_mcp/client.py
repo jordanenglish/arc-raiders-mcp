@@ -11,6 +11,7 @@ ARCDATA_BASE = "https://arcdata.mahcks.com/v1"
 ARDB_BASE = "https://ardb.app/api"
 METAFORGE_BASE = "https://metaforge.app/api/arc-raiders"
 WIKI_API = "https://arcraiders.wiki/w/api.php"
+RAIDTHEORY_BASE = "https://raw.githubusercontent.com/RaidTheory/arcraiders-data/main"
 ENEMY_CATEGORY = "ARC"
 CACHE_TTL = 3600  # 1 hour
 
@@ -476,3 +477,16 @@ async def get_all_quests() -> dict[str, dict]:
         _quests_by_name = {qid: data for qid, data in results if data}
 
     return _quests_by_name
+
+
+# ---------------------------------------------------------------------------
+# RaidTheory skill nodes
+# ---------------------------------------------------------------------------
+
+async def raidtheory_skill_nodes() -> list[dict]:
+    """Fetch all 45 skill nodes from RaidTheory/arcraiders-data."""
+    try:
+        data = await _get(f"{RAIDTHEORY_BASE}/skillNodes.json")
+        return data if isinstance(data, list) else []
+    except Exception:
+        return []

@@ -1065,6 +1065,63 @@ async def list_weapons(weapon_type: str = "") -> str:
 
 
 # ---------------------------------------------------------------------------
+# Skill tree
+# ---------------------------------------------------------------------------
+
+@mcp.tool()
+async def list_skills(category: str = "") -> str:
+    """
+    List all skill tree nodes, optionally filtered by category.
+    Shows each skill's description, max points, and what stat it impacts.
+
+    Categories: Conditioning, Mobility, Survival (case-insensitive).
+    Leave blank to list all three categories.
+    """
+    nodes = await client.raidtheory_skill_nodes()
+    if not nodes:
+        return "Skill data unavailable."
+
+    if category:
+        nodes = [n for n in nodes if category.lower() in n.get("category", "").lower()]
+        if not nodes:
+            return f"No skills found for category '{category}'. Try: Conditioning, Mobility, Survival."
+
+    by_category: dict[str, list] = {}
+    for node in nodes:
+        cat = node.get("category", "?").title()
+        by_category.setdefault(cat, []).append(node)
+
+    lines = []
+    for cat in sorted(by_category):
+        lines.append(f"## {cat}")
+        for node in by_category[cat]:
+            name = node.get("name", {}).get("en", "?")
+            desc = node.get("description", {}).get("en", "")
+            impacted = node.get("impactedSkill", {}).get("en", "")
+            max_pts = node.get("maxPoints", 1)
+            known = node.get("knownValue", [])
+            is_major = node.get("isMajor", False)
+            prereqs = node.get("prerequisiteNodeIds", [])
+
+            tag = " *(Major)*" if is_major else ""
+            lines.append(f"  - **{name}**{tag} (max {max_pts} pts)")
+            if desc:
+                lines.append(f"    _{desc}_")
+            if impacted:
+                lines.append(f"    Improves: {impacted}")
+            if known:
+                lines.append(f"    Value: {', '.join(known)}")
+            if prereqs:
+                # Resolve prereq IDs to names
+                id_to_name = {n["id"]: n.get("name", {}).get("en", n["id"]) for n in nodes}
+                prereq_names = [id_to_name.get(p, p) for p in prereqs]
+                lines.append(f"    Requires: {', '.join(prereq_names)}")
+        lines.append("")
+
+    return "\n".join(lines)
+
+
+# ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
 

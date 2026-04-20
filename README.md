@@ -133,6 +133,7 @@ Or add it manually to your Claude Code config:
 | `list_weapons` | All weapons with damage, headshot multiplier, fire rate, range, stability, armor pen, and sell value. Filter by type. |
 | `get_ttk` | Time-to-kill for any weapon against all four shield types (none/light/medium/heavy), for both body shots and headshots. Uses the exact damage formula from arcraiders.wiki. |
 | `explain_shields` | How shields work: mitigation percentages, charge mechanics, damage formula, and why ARC armor penetration does nothing in PvP. |
+| `list_skills` | Browse all 45 skill tree nodes across Conditioning, Mobility, and Survival. Shows description, max points, stat impacted, and prerequisites. |
 
 ---
 
@@ -145,6 +146,7 @@ The server pulls from three external APIs and one wiki:
 | **arcdata** | `arcdata.mahcks.com/v1` | Economy data: item sell values, recipes, vendor prices, quests, bots, trades, hideout modules |
 | **ARDB** | `ardb.app/api` | Item and enemy catalog with display names (used as the search index) |
 | **arcraiders.wiki** | `arcraiders.wiki/w/api.php` | Weapon headshot multipliers, enemy HP/armor/attack type, shield damage formulas (MediaWiki API, parsed from infobox templates) |
+| **RaidTheory** | `github.com/RaidTheory/arcraiders-data` | Skill tree nodes: all 45 skills across Conditioning, Mobility, and Survival with prerequisites and stat impacts |
 
 The APIs are community-maintained and unofficial. No API key is required.
 
