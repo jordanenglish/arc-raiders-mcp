@@ -1,6 +1,7 @@
 """Arc Raiders MCP server."""
 
 import asyncio
+import datetime
 
 from mcp.server.fastmcp import FastMCP
 
@@ -1059,6 +1060,83 @@ async def list_weapons(weapon_type: str = "") -> str:
                 f"STB {r['stability']} | Pen: {r['armor_pen']} | "
                 f"{r['ammo']} ammo | Sell: {_coins(r['value'])}"
             )
+        lines.append("")
+
+    return "\n".join(lines)
+
+
+# ---------------------------------------------------------------------------
+# Map events
+# ---------------------------------------------------------------------------
+
+@mcp.tool()
+async def get_map_events(map_name: str = "") -> str:
+    """
+    Show current and upcoming map events for Arc Raiders maps.
+    Events run on a fixed UTC schedule with major and minor slots.
+
+    Maps: Dam Battleground, Buried City, The Spaceport, Blue Gate, Stella Montis
+    Leave map_name blank to show all maps at the current UTC hour.
+    """
+    data = await client.raidtheory_map_events()
+    if not data:
+        return "Map event data unavailable."
+
+    schedule = data.get("schedule", {})
+    event_types = data.get("eventTypes", {})
+
+    now_utc = datetime.datetime.utcnow()
+    current_hour = now_utc.hour
+
+    def event_display(event_id: str) -> str:
+        if not event_id or event_id == "none":
+            return ""
+        et = event_types.get(event_id, {})
+        return et.get("displayName", event_id)
+
+    # Filter maps if requested
+    maps = schedule
+    if map_name:
+        maps = {k: v for k, v in schedule.items() if map_name.lower().replace(" ", "-") in k.lower()}
+        if not maps:
+            available = ", ".join(k.replace("-", " ").title() for k in schedule)
+            return f"Map '{map_name}' not found. Available: {available}"
+
+    lines = [
+        f"## Map Events — {now_utc.strftime('%H:%M')} UTC",
+        "",
+    ]
+
+    for map_id, slots in maps.items():
+        map_display = map_id.replace("-", " ").title()
+        lines.append(f"### {map_display}")
+
+        major = event_display(slots.get("major", {}).get(str(current_hour), ""))
+        minor = event_display(slots.get("minor", {}).get(str(current_hour), ""))
+
+        if major:
+            lines.append(f"  **Major:** {major}")
+        if minor:
+            lines.append(f"  **Minor:** {minor}")
+        if not major and not minor:
+            lines.append("  No event this hour.")
+
+        # Show next 3 upcoming events
+        upcoming = []
+        for offset in range(1, 13):
+            h = (current_hour + offset) % 24
+            nm = event_display(slots.get("major", {}).get(str(h), ""))
+            n_minor = event_display(slots.get("minor", {}).get(str(h), ""))
+            if nm or n_minor:
+                label = " + ".join(filter(None, [nm, n_minor]))
+                upcoming.append(f"    {h:02d}:00 UTC: {label}")
+            if len(upcoming) >= 3:
+                break
+
+        if upcoming:
+            lines.append("  Upcoming:")
+            lines.extend(upcoming)
+
         lines.append("")
 
     return "\n".join(lines)

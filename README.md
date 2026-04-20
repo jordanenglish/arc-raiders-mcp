@@ -134,6 +134,7 @@ Or add it manually to your Claude Code config:
 | `get_ttk` | Time-to-kill for any weapon against all four shield types (none/light/medium/heavy), for both body shots and headshots. Uses the exact damage formula from arcraiders.wiki. |
 | `explain_shields` | How shields work: mitigation percentages, charge mechanics, damage formula, and why ARC armor penetration does nothing in PvP. |
 | `list_skills` | Browse all 45 skill tree nodes across Conditioning, Mobility, and Survival. Shows description, max points, stat impacted, and prerequisites. |
+| `get_map_events` | Current and upcoming map events for all five maps based on the live UTC rotation schedule. Filter by map name. |
 
 ---
 

@@ -490,3 +490,11 @@ async def raidtheory_skill_nodes() -> list[dict]:
         return data if isinstance(data, list) else []
     except Exception:
         return []
+
+
+async def raidtheory_map_events() -> dict:
+    """Fetch map event schedule from RaidTheory/arcraiders-data."""
+    try:
+        return await _get(f"{RAIDTHEORY_BASE}/map-events/map-events.json")
+    except Exception:
+        return {}
