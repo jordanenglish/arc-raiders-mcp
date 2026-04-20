@@ -1,6 +1,6 @@
 # Arc Raiders MCP
 
-An [MCP (Model Context Protocol)](https://modelcontextprotocol.io) server that gives Claude tools to look up Arc Raiders game data: items, crafting recipes, quests, enemies, hideout modules, and trader inventories.
+An [MCP (Model Context Protocol)](https://modelcontextprotocol.io) server that gives Claude tools to look up Arc Raiders game data: items, crafting recipes, quests, enemies, hideout modules, trader inventories, skill trees, and live map events.
 
 _This project started as a learning exercise for building MCP servers - not a production tool. It's genuinely useful if you play Arc Raiders, but the data comes from community-maintained APIs that can lag behind patches, and some gaps exist (see [Known Limitations](#known-limitations)). Take the numbers as a solid starting point, not gospel. If something looks off, the game is probably right. If you're here to learn how MCP servers work, the [Developer Walkthrough](#how-it-works-a-developer-walkthrough) section breaks down every design decision from scratch._
 
@@ -53,6 +53,37 @@ _This project started as a learning exercise for building MCP servers - not a pr
 ### "Does armor penetration affect player shields?"
 
 > No. ARC armor penetration only applies to ARC robot armor. Against player shields, what matters is base damage, headshot multiplier, and fire rate. The Bettina's "strong" armor penetration does nothing in PVP - which is why despite its high fire rate, it takes 10 shots and 16.88s to kill a medium shield player.
+
+---
+
+### "What map events are happening right now?"
+
+> **04:27 UTC**
+>
+> - **Dam**: Close Scrutiny (major) + Harvester (minor). Next: Night Raid at 06:00.
+> - **Buried City**: Bird City (minor). Next: Close Scrutiny + Night Raid at 06:00-07:00.
+> - **Spaceport**: Electromagnetic Storm (major). Next: Hidden Bunker at 08:00.
+> - **Blue Gate**: Nothing active. Next: Night Raid + Prospecting Probes at 05:00.
+> - **Stella Montis**: Nothing active. Night Raid repeats every 4 hours.
+
+---
+
+### "What skills should I prioritize early?"
+
+> Depends on your playstyle, but a few are near-universally useful regardless:
+>
+> - **Security Breach** (Survival) - lets you open Security Lockers. Gated behind Broad Shoulders and One Raider's Scraps.
+> - **In-Round Crafting** (Survival) - field craft topside. Only 1 point, unlocks at Revitalizing Squat.
+> - **Flyswatter** (Conditioning) - one-shots Ticks, Pops, Wasps, and Turrets with a single melee hit.
+> - **Broad Shoulders** (Survival) - +2 kg carry capacity per point, up to 5 points.
+>
+> For movement-focused builds, **Carry The Momentum** and **Effortless Roll** (both Mobility) make dodging significantly more stamina-efficient.
+
+---
+
+### "Is it worth crafting Shield Rechargers or just buy from Lance?"
+
+> Always craft. Lance sells Shield Rechargers for **1,560 coins**. Crafting one costs **520 coins** in materials (1x ARC Powercell + 5x Rubber Parts) - a **1,040 coin savings** per recharger. Can be crafted in-raid or at Medical Lab/Workbench, level 1 station required.
 
 ---
 
