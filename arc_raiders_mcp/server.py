@@ -327,6 +327,20 @@ async def get_crafting_recipe(name: str) -> str:
     if not data:
         return f"Item '{name}' not found."
 
+    # Station ID -> display name mapping
+    _STATION_NAMES = {
+        "in_raid": "In-Raid",
+        "med_station": "Medical Lab",
+        "weapon_bench": "Gunsmith",
+        "equipment_bench": "Gear Bench",
+        "explosives_bench": "Explosives Station",
+        "utility_bench": "Utility Station",
+        "workbench": "Workbench",
+        "refiner": "Refiner",
+        "scrappy": "Scrappy",
+        "stash": "Stash",
+    }
+
     item_name = client.name_en(data)
     recipe = data.get("recipe", {})
     if not recipe:
@@ -337,9 +351,16 @@ async def get_crafting_recipe(name: str) -> str:
         bench = [bench]
     level = data.get("stationLevelRequired", 1)
 
+    # Separate in-raid flag from station names
+    can_craft_in_raid = "in_raid" in bench
+    stations = [_STATION_NAMES.get(b, b) for b in bench if b != "in_raid"]
+    station_str = ", ".join(stations) if stations else "Unknown"
+    if can_craft_in_raid:
+        station_str += " (or In-Raid)"
+
     lines = [
         f"## Crafting Recipe: {item_name}",
-        f"**Station:** {', '.join(bench) if bench else 'Unknown'}  |  **Level required:** {level}",
+        f"**Station:** {station_str}  |  **Level required:** {level}",
         "",
         "**Ingredients:**",
     ]
@@ -354,13 +375,23 @@ async def get_crafting_recipe(name: str) -> str:
         lines.append(f"  - {qty}x **{ing_name}** ({_coins(ing_val)} each) = {_coins(subtotal)}")
 
     sell_val = data.get("value", 0)
-    lines += ["", f"**Total ingredient value:** {_coins(ingredient_total)}"]
+    vendors = data.get("vendors", [])
+    cheapest_vendor = min((v.get("cost", {}).get("coins", 0) for v in vendors if "coins" in v.get("cost", {})), default=0)
+
+    lines += ["", f"**Craft cost (ingredients):** {_coins(ingredient_total)}"]
+
+    if cheapest_vendor:
+        savings = cheapest_vendor - ingredient_total
+        if savings > 0:
+            lines.append(f"**Cheapest vendor price:** {_coins(cheapest_vendor)} (craft saves {_coins(savings)})")
+        else:
+            lines.append(f"**Cheapest vendor price:** {_coins(cheapest_vendor)} (buying is cheaper by {_coins(-savings)})")
 
     if sell_val:
-        diff = sell_val - ingredient_total
-        sign = "+" if diff >= 0 else ""
-        verdict = "profitable" if diff >= 0 else "loss vs buying ingredients"
-        lines.append(f"**Crafted item sells for:** {_coins(sell_val)} ({sign}{_coins(diff)}, {verdict})")
+        profit = sell_val - ingredient_total
+        sign = "+" if profit >= 0 else ""
+        verdict = "profitable to craft and sell" if profit >= 0 else "not worth crafting for profit"
+        lines.append(f"**Sell value:** {_coins(sell_val)} ({sign}{_coins(profit)} vs craft cost, {verdict})")
 
     return "\n".join(lines)
 
