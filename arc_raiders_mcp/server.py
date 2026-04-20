@@ -714,26 +714,32 @@ async def list_weapons(weapon_type: str = "") -> str:
     if not weapons:
         return f"No weapons found matching type '{weapon_type}'."
 
-    # Fetch full ARDB detail for each weapon in parallel (has weaponSpecs)
+    # Fetch ARDB detail + wiki data for each weapon in parallel
     semaphore = asyncio.Semaphore(10)
 
-    async def fetch_one(item: dict) -> tuple[dict, dict | None]:
+    async def fetch_one(item: dict) -> tuple[dict, dict | None, dict | None]:
         async with semaphore:
-            detail = await client.ardb_item(item["id"])
-            return item, detail
+            name = client.name_en(item) or item.get("id", "")
+            detail, wiki = await asyncio.gather(
+                client.ardb_item(item["id"]),
+                client.wiki_weapon(name),
+            )
+            return item, detail, wiki
 
     results = await asyncio.gather(*[fetch_one(w) for w in weapons])
 
     # Group by weapon type for readability
     by_type: dict[str, list] = {}
-    for stub, detail in results:
+    for stub, detail, wiki in results:
         specs = (detail or {}).get("weaponSpecs", {})
         stats = specs.get("stats", {})
+        hs_mult = (wiki or {}).get("headshotmultiplier", "?")
         row = {
             "name": client.name_en(stub) or stub.get("id", "?"),
             "type": stub.get("type", "?").title(),
             "rarity": (stub.get("rarity") or "?").capitalize(),
             "damage": stats.get("damage", 0),
+            "hs_mult": hs_mult,
             "fire_rate": stats.get("fireRate", 0),
             "range": stats.get("range", 0),
             "stability": stats.get("stability", 0),
@@ -753,10 +759,10 @@ async def list_weapons(weapon_type: str = "") -> str:
         for r in rows:
             lines.append(
                 f"  - **{r['name']}** ({r['rarity']}) | "
-                f"DMG {r['damage']} | FR {r['fire_rate']} | "
-                f"RNG {r['range']} | STB {r['stability']} | "
-                f"Pen: {r['armor_pen']} | {r['ammo']} ammo | "
-                f"Sell: {_coins(r['value'])}"
+                f"DMG {r['damage']} | HS {r['hs_mult']} | "
+                f"FR {r['fire_rate']} | RNG {r['range']} | "
+                f"STB {r['stability']} | Pen: {r['armor_pen']} | "
+                f"{r['ammo']} ammo | Sell: {_coins(r['value'])}"
             )
         lines.append("")
 
