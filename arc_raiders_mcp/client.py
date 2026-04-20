@@ -575,6 +575,53 @@ async def wiki_weapon(name: str) -> dict | None:
     return await _fetch_wiki_enemy(base_name)
 
 
+async def wiki_project(name: str) -> dict | None:
+    """
+    Fetch project page from arcraiders.wiki and parse per-phase rewards.
+    Returns a dict with 'phase_rewards': {phase_num: [reward_str, ...]} and 'url'.
+
+    Parses wikitable rows looking for Stage/Phase columns with reward lists.
+    """
+    page_title = name.replace(" ", "_")
+    url = f"{WIKI_API}?action=parse&page={page_title}&prop=wikitext&format=json"
+    try:
+        data = await _get(url)
+        wikitext = data.get("parse", {}).get("wikitext", {}).get("*", "")
+        if not wikitext:
+            return None
+    except Exception:
+        return None
+
+    wiki_url = f"https://arcraiders.wiki/wiki/{page_title}"
+
+    # Rewards are encoded as {{Project item|reward|stage=N|ItemName|[DisplayName|]...|qty=X}}
+    phase_rewards: dict[int, list[str]] = {}
+
+    for m in re.finditer(r"\{\{Project item\|reward\|([^}]+)\}\}", wikitext):
+        content = m.group(1)
+        parts = [p.strip() for p in content.split("|")]
+
+        stage_m = re.search(r"stage=(\d+)", content)
+        qty_m = re.search(r"qty=(\d+)", content)
+        if not stage_m:
+            continue
+
+        stage = int(stage_m.group(1))
+        qty = int(qty_m.group(1)) if qty_m else 1
+
+        # Positional args (no "=") excluding "reward"
+        positional = [p for p in parts if "=" not in p and p and p != "reward"]
+        if not positional:
+            continue
+
+        # Last positional arg is the display name (e.g. "Torrente II" vs link "Torrente")
+        item_name = positional[-1]
+        reward_str = f"{qty}x {item_name}" if qty > 1 else item_name
+        phase_rewards.setdefault(stage, []).append(reward_str)
+
+    return {"phase_rewards": phase_rewards, "url": wiki_url}
+
+
 # ---------------------------------------------------------------------------
 # Quest search helper (fetches all 94 quests to search by name)
 # ---------------------------------------------------------------------------
@@ -623,6 +670,15 @@ async def raidtheory_bots() -> list[dict]:
     """Fetch bot data from RaidTheory/arcraiders-data (includes weakness, description, threat, XP)."""
     try:
         data = await _get(f"{RAIDTHEORY_BASE}/bots.json")
+        return data if isinstance(data, list) else []
+    except Exception:
+        return []
+
+
+async def raidtheory_projects() -> list[dict]:
+    """Fetch community projects from RaidTheory/arcraiders-data."""
+    try:
+        data = await _get(f"{RAIDTHEORY_BASE}/projects.json")
         return data if isinstance(data, list) else []
     except Exception:
         return []

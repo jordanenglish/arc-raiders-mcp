@@ -2,6 +2,7 @@
 
 import asyncio
 import datetime
+import re
 
 from mcp.server.fastmcp import FastMCP
 
@@ -58,6 +59,99 @@ async def _resolve_item(name: str) -> tuple[dict | None, dict | None, str]:
 # ---------------------------------------------------------------------------
 # Tools
 # ---------------------------------------------------------------------------
+
+@mcp.tool()
+async def get_blueprint(name: str) -> str:
+    """
+    Find out how to obtain a crafting blueprint for a weapon or item.
+    Blueprints are separate items that unlock crafting recipes at hideout stations.
+
+    Most blueprints are found as loot in-raid. This tool checks known
+    non-loot sources (quests, traders) and clearly notes when in-raid
+    loot is the only known acquisition method.
+
+    Use get_crafting_recipe() if you want to know what materials are
+    needed to craft the item once you have the blueprint.
+    """
+    # Normalize: strip "blueprint" suffix and weapon tier (I-IV) if present
+    base_name = name.strip()
+    if base_name.lower().endswith("blueprint"):
+        base_name = base_name[: -len("blueprint")].strip()
+    base_name = re.sub(r"\s+[IVX]+$", "", base_name, flags=re.IGNORECASE).strip()
+
+    # Look up the blueprint item directly by searching for "{base_name} Blueprint"
+    ardb_list = await client.ardb_items()
+    bp_query = f"{base_name} Blueprint"
+    bp_match = client.find_best_match(bp_query, ardb_list)
+
+    # Must be an actual blueprint item, not just a fuzzy weapon match
+    if not bp_match or "blueprint" not in client.name_en(bp_match).lower():
+        # Fall back: confirm the weapon exists so we can name it
+        weapon_data, _, _ = await _resolve_item(base_name)
+        if not weapon_data or "blueprint" in client.name_en(weapon_data).lower():
+            return f"Item '{base_name}' not found. Try search_items() to find the correct name."
+        weapon_name = client.name_en(weapon_data)
+        return (
+            f"## Blueprint: {weapon_name}\n\n"
+            "Blueprint item not found in data sources.\n\n"
+            "**Loot in-raid:**\n"
+            "Blueprints are found as loot while raiding. "
+            "Specific drop locations are not tracked in this server's data sources."
+        )
+
+    item_name = client.name_en(bp_match).replace(" Blueprint", "")
+    lines = [f"## Blueprint: {item_name}", ""]
+
+    # Check trader vendors on the blueprint item itself
+    bp_full = await client.arcdata_item(bp_match["id"])
+    vendor_offers: list[str] = []
+    if bp_full:
+        for v in bp_full.get("vendors", []):
+            cost = v.get("cost", {})
+            cost_str = f"{cost.get('coins', 0):,} coins" if "coins" in cost else str(cost)
+            extras = []
+            if v.get("limit"):
+                extras.append(f"limit {v['limit']}/day")
+            if v.get("requiredLevel"):
+                extras.append(f"level {v['requiredLevel']}+")
+            extra_str = f" ({', '.join(extras)})" if extras else ""
+            vendor_offers.append(f"  - **{v['trader']}:** {cost_str}{extra_str}")
+
+    # Check quests for blueprint rewards
+    all_quests = await client.get_all_quests()
+    quest_rewards: list[tuple[str, str, int]] = []
+    for quest in all_quests.values():
+        quest_name = client.name_en(quest)
+        trader = quest.get("trader", "?")
+        for r in quest.get("rewardItemIds", []):
+            if r.get("itemId") == bp_match["id"]:
+                quest_rewards.append((quest_name, trader, r.get("quantity", 1)))
+
+    if vendor_offers:
+        lines.append("**Buy from trader:**")
+        lines.extend(vendor_offers)
+        lines.append("")
+
+    if quest_rewards:
+        lines.append("**Quest reward:**")
+        for quest_name, trader, qty in quest_rewards:
+            lines.append(f"  - {qty}x from **{quest_name}** ({trader})")
+        lines.append("")
+
+    lines.append("**Loot in-raid:**")
+    lines.append(
+        "Blueprints are found as loot while raiding. "
+        "Specific drop locations and loot pool data are not tracked in this server's data sources."
+    )
+
+    if not vendor_offers and not quest_rewards:
+        lines.append("")
+        lines.append(
+            "_No trader or quest source found. In-raid loot is likely the only known acquisition method._"
+        )
+
+    return "\n".join(lines)
+
 
 @mcp.tool()
 async def get_item(name: str) -> str:
@@ -252,12 +346,31 @@ async def get_item(name: str) -> str:
         if mod_slots:
             lines += ["", "**Mod slots:** " + ", ".join(mod_slots.keys())]
 
+        # Upgrade cost to reach this tier (from previous tier)
+        upgrade_cost = data.get("upgradeCost", {})
+        if upgrade_cost:
+            upgrade_parts = []
+            for iid, qty in upgrade_cost.items():
+                ing = await client.arcdata_item(iid)
+                ing_name = client.name_en(ing) if ing else iid
+                upgrade_parts.append(f"{qty}x {ing_name}")
+            lines.append(f"**Upgrade cost (from previous tier):** {', '.join(upgrade_parts)}")
+
         # Upgrade chain
         upgrades_to = data.get("upgradesTo")
         if upgrades_to:
             up_item = await client.arcdata_item(upgrades_to)
             up_name = client.name_en(up_item) if up_item else upgrades_to
-            lines.append(f"**Upgrades to:** {up_name}")
+            next_upgrade_cost = up_item.get("upgradeCost", {}) if up_item else {}
+            if next_upgrade_cost:
+                next_parts = []
+                for iid, qty in next_upgrade_cost.items():
+                    ing = await client.arcdata_item(iid)
+                    ing_name = client.name_en(ing) if ing else iid
+                    next_parts.append(f"{qty}x {ing_name}")
+                lines.append(f"**Upgrades to:** {up_name} (upgrade cost: {', '.join(next_parts)})")
+            else:
+                lines.append(f"**Upgrades to:** {up_name}")
 
         # Repair cost
         repair_cost = data.get("repairCost", {})
@@ -348,7 +461,26 @@ async def get_crafting_recipe(name: str) -> str:
 
     item_name = client.name_en(data)
     recipe = data.get("recipe", {})
+    upgrade_cost = data.get("upgradeCost", {})
     if not recipe:
+        if upgrade_cost:
+            # Item is obtained by upgrading from the previous tier
+            upgrades_from = data.get("upgradesFrom")
+            from_name = item_name.rsplit(" ", 1)[0] + " " + (
+                {"II": "I", "III": "II", "IV": "III"}.get(item_name.rsplit(" ", 1)[-1], "")
+            ) if " " in item_name else item_name
+            if upgrades_from:
+                from_item = await client.arcdata_item(upgrades_from)
+                from_name = client.name_en(from_item) if from_item else from_name
+            lines = [f"## {item_name}", "", f"**{item_name}** cannot be crafted directly. It is obtained by upgrading from the previous tier.", ""]
+            lines.append("**Upgrade cost:**")
+            for iid, qty in upgrade_cost.items():
+                ing = await client.arcdata_item(iid)
+                ing_name = client.name_en(ing) if ing else iid
+                ing_val = ing.get("value", 0) if ing else 0
+                lines.append(f"  - {qty}x **{ing_name}**" + (f" ({_coins(ing_val)} each)" if ing_val else ""))
+            lines += ["", f"_To get {item_name}: first craft {from_name}, then upgrade it._"]
+            return "\n".join(lines)
         return f"**{item_name}** cannot be crafted (no recipe found)."
 
     bench = data.get("craftBench", [])
@@ -1323,6 +1455,140 @@ async def list_augments(shield: str = "", sort_by: str = "") -> str:
         lines.append(f"**Inventory:** {slot_str}")
         if aug["perk"]:
             lines.append(f"**Perk:** {aug['perk']}")
+
+    return "\n".join(lines)
+
+
+# ---------------------------------------------------------------------------
+# Projects
+# ---------------------------------------------------------------------------
+
+@mcp.tool()
+async def list_projects() -> str:
+    """
+    List all community projects with their current status and phase count.
+    Projects are shared goals that require contributing items across multiple phases.
+
+    Examples: Expedition, High-Gain Antenna, Weather Monitor System.
+    Use get_project() for full phase requirements.
+    """
+    projects = await client.raidtheory_projects()
+    if not projects:
+        return "Project data unavailable."
+
+    now = datetime.datetime.utcnow().timestamp()
+    lines = ["## Community Projects", ""]
+
+    for p in projects:
+        if p.get("disabled"):
+            continue
+        name = p.get("name", {}).get("en", p.get("id", "?"))
+        phases = p.get("phases", [])
+        start = p.get("startDate")
+        end = p.get("endDate")
+
+        status_parts = []
+        if start and end:
+            if now < start:
+                status_parts.append("upcoming")
+            elif now > end:
+                status_parts.append("ended")
+            else:
+                status_parts.append("active")
+        status_str = f" [{', '.join(status_parts)}]" if status_parts else ""
+
+        phase_str = f"{len(phases)} phase(s)" if phases else "no phase data"
+        lines.append(f"  - **{name}**{status_str} — {phase_str}")
+
+    return "\n".join(lines)
+
+
+@mcp.tool()
+async def get_project(name: str) -> str:
+    """
+    Get full details for a community project: description, all phases,
+    and the items required for each phase.
+
+    Examples: 'expedition', 'high-gain antenna', 'weather monitor'
+    """
+    projects = await client.raidtheory_projects()
+    if not projects:
+        return "Project data unavailable."
+
+    active = [p for p in projects if not p.get("disabled")]
+    match = client.find_best_match(name, active)
+    if not match:
+        names = [p.get("name", {}).get("en", p.get("id", "?")) for p in active]
+        return f"Project '{name}' not found. Available: {', '.join(names)}"
+
+    project_name = match.get("name", {}).get("en", match.get("id", "?"))
+    desc = match.get("description", {}).get("en", "")
+    phases = match.get("phases", [])
+
+    now = datetime.datetime.utcnow().timestamp()
+    start = match.get("startDate")
+    end = match.get("endDate")
+
+    lines = [f"## {project_name}"]
+
+    if start and end:
+        start_dt = datetime.datetime.utcfromtimestamp(start).strftime("%Y-%m-%d")
+        end_dt = datetime.datetime.utcfromtimestamp(end).strftime("%Y-%m-%d")
+        if now < start:
+            lines.append(f"**Status:** Upcoming (starts {start_dt})")
+        elif now > end:
+            lines.append(f"**Status:** Ended ({end_dt})")
+        else:
+            lines.append(f"**Status:** Active (ends {end_dt})")
+
+    if desc:
+        lines += ["", f"_{desc}_"]
+
+    if not phases:
+        lines += ["", "_Phase requirement data not available for this project._"]
+        return "\n".join(lines)
+
+    # Fetch wiki rewards in parallel with phase rendering
+    wiki = await client.wiki_project(project_name)
+    phase_rewards = (wiki or {}).get("phase_rewards", {})
+    wiki_url = (wiki or {}).get("url")
+
+    if wiki_url:
+        lines.append(f"_Wiki: {wiki_url}_")
+
+    lines += [""]
+    for phase in phases:
+        phase_num = phase.get("phase", "?")
+        phase_name = phase.get("name", {}).get("en", f"Phase {phase_num}")
+        phase_desc = phase.get("description", {}).get("en", "")
+        reqs = phase.get("requirementItemIds", [])
+
+        lines.append(f"### Phase {phase_num}: {phase_name}")
+        if phase_desc:
+            lines.append(f"_{phase_desc}_")
+
+        if reqs:
+            phase_total = 0
+            lines.append("")
+            lines.append("**Required items:**")
+            for req in reqs:
+                item = await client.arcdata_item(req["itemId"])
+                item_name = client.name_en(item) if item else req["itemId"]
+                val = item.get("value", 0) if item else 0
+                qty = req["quantity"]
+                subtotal = val * qty
+                phase_total += subtotal
+                lines.append(f"  - {qty}x **{item_name}** ({_coins(subtotal)} value)")
+            lines.append(f"  _Phase material value: {_coins(phase_total)}_")
+
+        rewards = phase_rewards.get(phase_num, [])
+        if rewards:
+            lines.append("")
+            lines.append("**Rewards:**")
+            for r in rewards:
+                lines.append(f"  - {r}")
+
+        lines.append("")
 
     return "\n".join(lines)
 
