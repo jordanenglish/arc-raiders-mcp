@@ -492,9 +492,13 @@ async def raidtheory_skill_nodes() -> list[dict]:
         return []
 
 
-async def raidtheory_map_events() -> dict:
-    """Fetch map event schedule from RaidTheory/arcraiders-data."""
+async def arcraidershub_map_events() -> dict:
+    """
+    Fetch live map event schedule from arcraidershub.com.
+    Updated hourly with confirmed data. Schedule is a list of 24 hourly entries,
+    each with map names as keys and {minor, major} event values.
+    """
     try:
-        return await _get(f"{RAIDTHEORY_BASE}/map-events/map-events.json")
+        return await _get("https://arcraidershub.com/data/events.json")
     except Exception:
         return {}

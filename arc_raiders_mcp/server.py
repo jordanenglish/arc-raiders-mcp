@@ -1073,46 +1073,42 @@ async def list_weapons(weapon_type: str = "") -> str:
 async def get_map_events(map_name: str = "") -> str:
     """
     Show current and upcoming map events for Arc Raiders maps.
-    Events run on a fixed UTC schedule with major and minor slots.
+    Data is sourced from arcraidershub.com and updated hourly.
 
-    Maps: Dam Battleground, Buried City, The Spaceport, Blue Gate, Stella Montis
+    Maps: Dam, Buried City, Spaceport, Blue Gate, Stella Montis
     Leave map_name blank to show all maps at the current UTC hour.
     """
-    data = await client.raidtheory_map_events()
+    data = await client.arcraidershub_map_events()
     if not data:
         return "Map event data unavailable."
 
-    schedule = data.get("schedule", {})
-    event_types = data.get("eventTypes", {})
+    schedule = data.get("schedule", [])
+    map_names = data.get("maps", ["Dam", "Buried City", "Spaceport", "Blue Gate", "Stella Montis"])
 
     now_utc = datetime.datetime.utcnow()
     current_hour = now_utc.hour
 
-    def event_display(event_id: str) -> str:
-        if not event_id or event_id == "none":
-            return ""
-        et = event_types.get(event_id, {})
-        return et.get("displayName", event_id)
+    # Build hour->entry lookup
+    by_hour = {entry["hour"]: entry for entry in schedule if "hour" in entry}
 
     # Filter maps if requested
-    maps = schedule
+    filtered_maps = map_names
     if map_name:
-        maps = {k: v for k, v in schedule.items() if map_name.lower().replace(" ", "-") in k.lower()}
-        if not maps:
-            available = ", ".join(k.replace("-", " ").title() for k in schedule)
-            return f"Map '{map_name}' not found. Available: {available}"
+        filtered_maps = [m for m in map_names if map_name.lower() in m.lower()]
+        if not filtered_maps:
+            return f"Map '{map_name}' not found. Available: {', '.join(map_names)}"
 
     lines = [
         f"## Map Events — {now_utc.strftime('%H:%M')} UTC",
         "",
     ]
 
-    for map_id, slots in maps.items():
-        map_display = map_id.replace("-", " ").title()
-        lines.append(f"### {map_display}")
+    for map_key in filtered_maps:
+        lines.append(f"### {map_key}")
 
-        major = event_display(slots.get("major", {}).get(str(current_hour), ""))
-        minor = event_display(slots.get("minor", {}).get(str(current_hour), ""))
+        current = by_hour.get(current_hour, {}).get(map_key, {})
+        major = current.get("major") or ""
+        minor = current.get("minor") or ""
 
         if major:
             lines.append(f"  **Major:** {major}")
@@ -1121,12 +1117,13 @@ async def get_map_events(map_name: str = "") -> str:
         if not major and not minor:
             lines.append("  No event this hour.")
 
-        # Show next 3 upcoming events
+        # Next 3 upcoming non-empty hours
         upcoming = []
-        for offset in range(1, 13):
+        for offset in range(1, 25):
             h = (current_hour + offset) % 24
-            nm = event_display(slots.get("major", {}).get(str(h), ""))
-            n_minor = event_display(slots.get("minor", {}).get(str(h), ""))
+            entry = by_hour.get(h, {}).get(map_key, {})
+            nm = entry.get("major") or ""
+            n_minor = entry.get("minor") or ""
             if nm or n_minor:
                 label = " + ".join(filter(None, [nm, n_minor]))
                 upcoming.append(f"    {h:02d}:00 UTC: {label}")
