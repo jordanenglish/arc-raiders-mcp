@@ -687,6 +687,137 @@ async def get_trader_inventory(trader_name: str = "") -> str:
 
 
 # ---------------------------------------------------------------------------
+# TTK calculator
+# ---------------------------------------------------------------------------
+
+# Shield stats sourced from arcraiders.wiki/wiki/Shields
+_SHIELDS = {
+    "none":   {"charge": 0,  "mitigation": 0.0},
+    "light":  {"charge": 40, "mitigation": 0.40},
+    "medium": {"charge": 70, "mitigation": 0.425},
+    "heavy":  {"charge": 80, "mitigation": 0.525},
+}
+
+_PLAYER_HP = 100  # Standard player HP (wiki: 4-5 bandages × 20 HP/bandage)
+
+
+def _calc_shots_and_ttk(
+    damage: float,
+    hs_mult: float,
+    fire_rate: float,
+    shield_charge: int,
+    mitigation: float,
+    headshots: bool,
+) -> tuple[int, float]:
+    """
+    Returns (shots_to_kill, ttk_seconds).
+
+    Shield mechanic (arcraiders.wiki):
+      - While shield charge > 0: HP damage is mitigated, shield takes full base damage.
+      - Headshot multiplier applies only to HP, not shield charge.
+      - Mitigation applies on every shot while charge > 0, even if charge < incoming damage.
+    ARC armor penetration does NOT affect player shields.
+    """
+    hp = float(_PLAYER_HP)
+    charge = float(shield_charge)
+    shots = 0
+
+    while hp > 0:
+        shots += 1
+        mit = mitigation if charge > 0 else 0.0
+        mult = hs_mult if headshots else 1.0
+        hp_dmg = damage * (1.0 - mit) * mult
+        hp -= hp_dmg
+        if charge > 0:
+            charge = max(0.0, charge - damage)
+
+    ttk = (shots - 1) * (60.0 / fire_rate) if fire_rate > 0 else 0.0
+    return shots, ttk
+
+
+@mcp.tool()
+async def get_ttk(name: str) -> str:
+    """
+    Calculate time-to-kill (TTK) for a weapon against every shield type
+    (none, light, medium, heavy). Shows shots-to-kill and time for both
+    body shots and headshots.
+
+    Player HP is assumed to be 100. Shield damage formula from arcraiders.wiki.
+    Note: ARC armor penetration does not affect player shields - that stat only
+    applies to ARC robot armor.
+    """
+    data, ardb_detail, _ = await _resolve_item(name)
+    if not data:
+        return f"Weapon '{name}' not found."
+
+    item_name = client.name_en(data)
+
+    item_type_upper = data.get("type", "").upper()
+    is_weapon = data.get("isWeapon", False) or any(
+        wt in item_type_upper
+        for wt in ("SMG", "AR", "LMG", "SHOTGUN", "SNIPER", "PISTOL", "LAUNCHER", "MELEE", "RIFLE",
+                   "HAND CANNON", "BATTLE RIFLE", "ASSAULT RIFLE")
+    )
+    if not is_weapon:
+        return f"'{item_name}' is not a weapon."
+
+    specs = (ardb_detail or {}).get("weaponSpecs", {})
+    stats = specs.get("stats", {})
+    damage = stats.get("damage", 0)
+    fire_rate = stats.get("fireRate", 0)
+
+    wiki = await client.wiki_weapon(item_name)
+    raw_hs = (wiki or {}).get("headshotmultiplier", "")
+    try:
+        hs_mult = float(str(raw_hs).rstrip("×x").strip())
+    except (ValueError, AttributeError):
+        hs_mult = None
+
+    if not damage or not fire_rate:
+        return f"Stat data unavailable for '{item_name}'."
+
+    lines = [
+        f"## TTK: {item_name}",
+        f"**Damage:** {damage}  |  "
+        f"**Headshot Multiplier:** {raw_hs if hs_mult else 'unknown'}  |  "
+        f"**Fire Rate:** {fire_rate} RPM",
+        f"**Player HP assumed:** {_PLAYER_HP}",
+        "",
+        "| Shield | Body Shots | Body TTK | HS Shots | HS TTK |",
+        "|--------|-----------|----------|---------|--------|",
+    ]
+
+    for shield_name, shield in _SHIELDS.items():
+        body_shots, body_ttk = _calc_shots_and_ttk(
+            damage, 1.0, fire_rate, shield["charge"], shield["mitigation"], False
+        )
+        body_ttk_str = f"{body_ttk:.2f}s" if body_ttk > 0 else "instant"
+
+        if hs_mult:
+            hs_shots, hs_ttk = _calc_shots_and_ttk(
+                damage, hs_mult, fire_rate, shield["charge"], shield["mitigation"], True
+            )
+            hs_ttk_str = f"{hs_ttk:.2f}s" if hs_ttk > 0 else "instant"
+            hs_col = f"{hs_shots} ({hs_ttk_str})"
+        else:
+            hs_col = "unknown"
+
+        lines.append(
+            f"| {shield_name.capitalize()} "
+            f"({shield['charge']} charge, {int(shield['mitigation']*100)}% mit) "
+            f"| {body_shots} ({body_ttk_str}) | | {hs_col} | |"
+        )
+
+    lines += [
+        "",
+        "> Body TTK = time from first shot to kill. Headshot TTK assumes every shot is a headshot.",
+        "> ARC armor penetration does not reduce player shield mitigation.",
+    ]
+
+    return "\n".join(lines)
+
+
+# ---------------------------------------------------------------------------
 # Weapon comparison
 # ---------------------------------------------------------------------------
 
