@@ -123,21 +123,26 @@ async def get_item(name: str) -> str:
         lines.extend(salvage_lines)
 
     # Recommendation
-    options: dict[str, int] = {"Sell": sell_value}
-    if recycle_total:
-        options["Recycle"] = recycle_total
-    if salvage_total:
-        options["Salvage (in-raid)"] = salvage_total
-
-    best = max(options, key=lambda k: options[k])
-    best_val = options[best]
+    is_blueprint = "blueprint" in data.get("type", "").lower() or "blueprint" in item_name.lower()
 
     lines.append("")
-    if best == "Sell" or len(options) == 1:
-        lines.append(f"**Recommendation:** Sell for {_coins(sell_value)}")
+    if is_blueprint:
+        lines.append("**Recommendation:** Learn the blueprint to unlock crafting. Blueprints cannot be purchased from traders — they are found in-raid or earned as quest rewards.")
     else:
-        gain = best_val - sell_value
-        lines.append(f"**Recommendation: {best}** (+{_coins(gain)} vs selling)")
+        options: dict[str, int] = {"Sell": sell_value}
+        if recycle_total:
+            options["Recycle"] = recycle_total
+        if salvage_total:
+            options["Salvage (in-raid)"] = salvage_total
+
+        best = max(options, key=lambda k: options[k])
+        best_val = options[best]
+
+        if best == "Sell" or len(options) == 1:
+            lines.append(f"**Recommendation:** Sell for {_coins(sell_value)}")
+        else:
+            gain = best_val - sell_value
+            lines.append(f"**Recommendation: {best}** (+{_coins(gain)} vs selling)")
 
     # Vendor buy prices
     vendors = data.get("vendors", [])
