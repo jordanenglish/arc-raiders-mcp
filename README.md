@@ -3,9 +3,9 @@
 An [MCP (Model Context Protocol)](https://modelcontextprotocol.io) server that gives Claude tools to look up Arc Raiders game data: items, crafting recipes, quests, enemies, hideout modules, and trader inventories.
 
 Ask Claude things like:
-- *"What's the best way to dispose of a Stitcher T2?"*
-- *"What do I need to craft a Medkit?"*
-- *"What does the ARC Stalker drop?"*
+- *"What's the best way to dispose of an Arpeggio II?"*
+- *"What do I need to craft an Adrenaline Shot?"*
+- *"What does the Sentinel drop?"*
 - *"How do I upgrade my Workbench to level 3?"*
 
 ---
@@ -206,18 +206,18 @@ Note the `try/except` - if any individual item fetch fails, the function returns
 
 Here is what happens when Claude calls `get_item("Stitcher T2")`:
 
-1. **`_resolve_item("Stitcher T2")`** is called first. This is a shared helper that:
+1. **`_resolve_item("Arpeggio II")`** is called first. This is a shared helper that:
    - Fetches the full ARDB item list (which has display names)
-   - Runs fuzzy name matching to find `stitcher_t2`
+   - Runs fuzzy name matching to find `arpeggio_ii`
    - Fetches the arcdata record for that ID (has economy/recipe data)
    - Fetches the ARDB detail record for that ID (has weapon specs)
-   - Falls back between ID formats if needed (arcdata uses `stitcher_ii`, ARDB uses `stitcher_t2`)
+   - Falls back between ID formats if needed if the IDs differ between the two APIs
 
 2. **`get_item()`** takes the resolved data and builds a formatted Markdown string covering economy, vendor prices, crafting, and weapon stats.
 
 3. Claude receives the Markdown string and uses it to answer the user.
 
-The reason two APIs are needed: ARDB has item names (for search) but limited economy data. arcdata has rich economy/recipe data but doesn't always have display names. The server uses ARDB as the search index and arcdata as the data source.
+The reason two APIs are needed: ARDB has item names (good for search) but limited economy data. arcdata has rich economy/recipe data but inconsistent display names. The server uses ARDB as the search index and arcdata as the data source.
 
 ### Fuzzy Name Matching
 
@@ -303,7 +303,7 @@ Enemy pages have infobox templates like:
 
 ```
 {{Infobox arc
-| name = ARC Stalker
+| name = Sentinel
 | health = 450
 | armor = Heavy
 | pAttack = Ranged
