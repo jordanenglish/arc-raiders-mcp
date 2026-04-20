@@ -561,6 +561,14 @@ async def get_enemy(name: str) -> str:
                 rarity = drop.get("rarity", "").capitalize()
                 lines.append(f"  - {drop_name} ({rarity}, {_coins(val)})")
 
+    # Behavior and combat tips from wiki
+    behavior = (wiki or {}).get("_section_behavior", "")
+    combat_tips = (wiki or {}).get("_section_combat_tips", "") or (wiki or {}).get("_section_combat tips", "")
+    if behavior:
+        lines += ["", "### Behavior", behavior]
+    if combat_tips:
+        lines += ["", "### Combat Tips", combat_tips]
+
     return "\n".join(lines)
 
 

@@ -331,8 +331,30 @@ def _parse_infobox(wikitext: str) -> dict:
     return result
 
 
+def _parse_wiki_section(wikitext: str, section_name: str) -> str:
+    """
+    Extract the text content of a named == Section == from wikitext.
+    Strips wiki markup: [[links]], '''bold''', ''italic'', templates, HTML tags.
+    """
+    pattern = rf"==\s*{re.escape(section_name)}\s*==\s*(.*?)(?=\n==|\Z)"
+    match = re.search(pattern, wikitext, re.DOTALL | re.IGNORECASE)
+    if not match:
+        return ""
+    raw = match.group(1).strip()
+
+    # Strip wiki markup
+    raw = re.sub(r"\[\[(?:[^|\]]*\|)?([^\]]+)\]\]", r"\1", raw)  # [[Link|Text]] -> Text
+    raw = re.sub(r"'{2,3}", "", raw)                               # bold/italic markers
+    raw = re.sub(r"\{\{[^}]*\}\}", "", raw)                        # templates {{...}}
+    raw = re.sub(r"<[^>]+>", "", raw)                              # HTML tags
+    raw = re.sub(r"\[\[|\]\]", "", raw)                            # leftover brackets
+    raw = re.sub(r"^[*#]\s*", "- ", raw, flags=re.MULTILINE)      # bullets -> dashes
+    raw = re.sub(r"\n{3,}", "\n\n", raw)                           # collapse blank lines
+    return raw.strip()
+
+
 async def _fetch_wiki_enemy(page_title: str) -> dict | None:
-    """Fetch and parse infobox data for one wiki enemy page."""
+    """Fetch and parse infobox + combat sections for one wiki enemy/weapon page."""
     try:
         url = (
             f"{WIKI_API}?action=parse&page={page_title.replace(' ', '%20')}"
@@ -346,6 +368,13 @@ async def _fetch_wiki_enemy(page_title: str) -> dict | None:
         if not info:
             return None
         info["_page"] = page_title
+
+        # Extract combat-relevant prose sections
+        for section in ("Behavior", "Combat tips", "Combat Tips"):
+            content = _parse_wiki_section(wikitext, section)
+            if content:
+                info[f"_section_{section.lower().replace(' ', '_')}"] = content
+
         return info
     except Exception:
         return None
