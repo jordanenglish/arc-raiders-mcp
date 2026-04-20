@@ -308,7 +308,7 @@ async def search_items(
 
     for item in matches[:limit]:
         item_name = client.name_en(item) or item.get("id", "?")
-        rarity_str = item.get("rarity", "?").capitalize()
+        rarity_str = (item.get("rarity") or "?").capitalize()
         type_str = item.get("type", "?")
         val = item.get("value", 0)
         lines.append(f"  - **{item_name}** ({rarity_str} {type_str}) - {_coins(val)}")
@@ -682,6 +682,83 @@ async def get_trader_inventory(trader_name: str = "") -> str:
         extra_str = f" [{', '.join(extras)}]" if extras else ""
 
         lines.append(f"  - Give {cost_str} -> Get {recv_qty}x **{recv_name}** ({_coins(recv_val)}){extra_str}")
+
+    return "\n".join(lines)
+
+
+# ---------------------------------------------------------------------------
+# Weapon comparison
+# ---------------------------------------------------------------------------
+
+_WEAPON_TYPES = {"smg", "lmg", "assault rifle", "battle rifle", "hand cannon",
+                 "pistol", "shotgun", "sniper rifle"}
+
+
+@mcp.tool()
+async def list_weapons(weapon_type: str = "") -> str:
+    """
+    List all weapons with key combat stats and sell value for comparison.
+    Useful for "what's the best weapon" or "bang for buck" questions.
+
+    weapon_type: assault rifle, battle rifle, SMG, LMG, shotgun,
+                 sniper rifle, pistol, hand cannon (partial match, case-insensitive).
+    Leave blank to list all weapon types.
+    """
+    all_items = await client.ardb_items()
+    weapons = [
+        i for i in all_items
+        if i.get("type", "").lower() in _WEAPON_TYPES
+        and (not weapon_type or weapon_type.lower() in i.get("type", "").lower())
+    ]
+
+    if not weapons:
+        return f"No weapons found matching type '{weapon_type}'."
+
+    # Fetch full ARDB detail for each weapon in parallel (has weaponSpecs)
+    semaphore = asyncio.Semaphore(10)
+
+    async def fetch_one(item: dict) -> tuple[dict, dict | None]:
+        async with semaphore:
+            detail = await client.ardb_item(item["id"])
+            return item, detail
+
+    results = await asyncio.gather(*[fetch_one(w) for w in weapons])
+
+    # Group by weapon type for readability
+    by_type: dict[str, list] = {}
+    for stub, detail in results:
+        specs = (detail or {}).get("weaponSpecs", {})
+        stats = specs.get("stats", {})
+        row = {
+            "name": client.name_en(stub) or stub.get("id", "?"),
+            "type": stub.get("type", "?").title(),
+            "rarity": (stub.get("rarity") or "?").capitalize(),
+            "damage": stats.get("damage", 0),
+            "fire_rate": stats.get("fireRate", 0),
+            "range": stats.get("range", 0),
+            "stability": stats.get("stability", 0),
+            "armor_pen": specs.get("armorPenetration", "?"),
+            "ammo": specs.get("ammoType", "?"),
+            "value": stub.get("value", 0),
+        }
+        by_type.setdefault(row["type"], []).append(row)
+
+    lines = ["# Weapons Overview", ""]
+
+    for wtype in sorted(by_type):
+        lines.append(f"## {wtype}")
+        # Sort within type: primary sort by rarity tier, secondary by damage
+        rarity_order = {"Common": 0, "Uncommon": 1, "Rare": 2, "Epic": 3, "Legendary": 4, "?": -1}
+        rows = sorted(by_type[wtype], key=lambda r: (rarity_order.get(r["rarity"], -1), r["damage"]))
+        for r in rows:
+            lines.append(
+                f"  - **{r['name']}** ({r['rarity']}) | "
+                f"DMG {r['damage']} | FR {r['fire_rate']} | "
+                f"RNG {r['range']} | STB {r['stability']} | "
+                f"Pen: {r['armor_pen']} | {r['ammo']} ammo | "
+                f"Sell: {_coins(r['value'])}"
+            )
+        lines.append("")
 
     return "\n".join(lines)
 
