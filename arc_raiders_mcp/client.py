@@ -15,6 +15,133 @@ RAIDTHEORY_BASE = "https://raw.githubusercontent.com/RaidTheory/arcraiders-data/
 ENEMY_CATEGORY = "ARC"
 CACHE_TTL = 3600  # 1 hour
 
+# ---------------------------------------------------------------------------
+# Augment data (static — sourced from arcraiders.wiki/wiki/Augments)
+# slots: main inventory count | quick_use | safe_pocket | special: extra slot notes
+# ---------------------------------------------------------------------------
+AUGMENTS: list[dict] = [
+    {
+        "name": "Free Loadout Augment",
+        "weight_limit": 35,
+        "shields": ["Light"],
+        "slots": 14, "quick_use": 4, "safe_pocket": 0,
+        "special": None,
+        "perk": None,
+    },
+    {
+        "name": "Combat Mk. 1",
+        "weight_limit": 45,
+        "shields": ["Light", "Medium"],
+        "slots": 16, "quick_use": 4, "safe_pocket": 1,
+        "special": None,
+        "perk": None,
+    },
+    {
+        "name": "Combat Mk. 2",
+        "weight_limit": 55,
+        "shields": ["Light", "Medium", "Heavy"],
+        "slots": 18, "quick_use": 4, "safe_pocket": 1,
+        "special": "1 Grenade slot",
+        "perk": "Restores 1 HP every 5s. Paused for 30s after taking damage.",
+    },
+    {
+        "name": "Combat Mk. 3 (Aggressive)",
+        "weight_limit": 65,
+        "shields": ["Light", "Medium", "Heavy"],
+        "slots": 18, "quick_use": 4, "safe_pocket": 1,
+        "special": "2 Grenade slots",
+        "perk": "Restores 2 HP every 5s. Paused for 30s after taking damage.",
+    },
+    {
+        "name": "Combat Mk. 3 (Flanking)",
+        "weight_limit": 60,
+        "shields": ["Light"],
+        "slots": 20, "quick_use": 5, "safe_pocket": 2,
+        "special": "3 Utility slots",
+        "perk": "Stowed/unequipped Pistols and Hand Cannons are 33% faster to equip.",
+    },
+    {
+        "name": "Looting Mk. 1",
+        "weight_limit": 50,
+        "shields": ["Light"],
+        "slots": 18, "quick_use": 4, "safe_pocket": 1,
+        "special": None,
+        "perk": None,
+    },
+    {
+        "name": "Looting Mk. 2",
+        "weight_limit": 60,
+        "shields": ["Light"],
+        "slots": 22, "quick_use": 4, "safe_pocket": 2,
+        "special": "3 Trinket slots",
+        "perk": "Automatically throws off attached Ticks after 1s.",
+    },
+    {
+        "name": "Looting Mk. 3 (Cautious)",
+        "weight_limit": 70,
+        "shields": ["Light"],
+        "slots": 24, "quick_use": 5, "safe_pocket": 2,
+        "special": "Integrated Binoculars",
+        "perk": "Upon Shield break, automatically administers a weak Adrenaline Shot.",
+    },
+    {
+        "name": "Looting Mk. 3 (Safekeeper)",
+        "weight_limit": 65,
+        "shields": ["Light", "Medium", "Heavy"],
+        "slots": 18, "quick_use": 4, "safe_pocket": 1,
+        "special": "2 Trinket slots",
+        "perk": "Safe Pocket that protects stored items from loss on death.",
+    },
+    {
+        "name": "Looting Mk. 3 (Survivor)",
+        "weight_limit": 80,
+        "shields": ["Light", "Medium"],
+        "slots": 20, "quick_use": 5, "safe_pocket": 3,
+        "special": "1 Utility slot",
+        "perk": "While downed and stationary, health regens up to 75% of max downed HP.",
+    },
+    {
+        "name": "Tactical Mk. 1",
+        "weight_limit": 40,
+        "shields": ["Light", "Medium"],
+        "slots": 15, "quick_use": 5, "safe_pocket": 1,
+        "special": None,
+        "perk": None,
+    },
+    {
+        "name": "Tactical Mk. 2",
+        "weight_limit": 45,
+        "shields": ["Light", "Medium"],
+        "slots": 17, "quick_use": 5, "safe_pocket": 1,
+        "special": "1 Utility slot",
+        "perk": "Upon Shield break, deploys a small smoke grenade.",
+    },
+    {
+        "name": "Tactical Mk. 3 (Defensive)",
+        "weight_limit": 60,
+        "shields": ["Light", "Medium", "Heavy"],
+        "slots": 20, "quick_use": 5, "safe_pocket": 1,
+        "special": "Integrated Shield Recharger",
+        "perk": "Shield Rechargers can be used while running.",
+    },
+    {
+        "name": "Tactical Mk. 3 (Healing)",
+        "weight_limit": 55,
+        "shields": ["Light", "Medium"],
+        "slots": 16, "quick_use": 4, "safe_pocket": 0,
+        "special": "3 Healing item slots",
+        "perk": "On revive, releases a healing cloud that instantly restores 20 HP (30s cooldown).",
+    },
+    {
+        "name": "Tactical Mk. 3 (Revival)",
+        "weight_limit": 65,
+        "shields": ["Light"],
+        "slots": 16, "quick_use": 5, "safe_pocket": 2,
+        "special": "Integrated Defibrillator",
+        "perk": "Restores 1 HP every 5s. Integrated Defibrillator for reviving teammates.",
+    },
+]
+
 _cache: dict[str, tuple[Any, float]] = {}
 
 # Full item catalog for reverse lookups (built lazily)

@@ -1271,6 +1271,58 @@ async def list_skills(category: str = "") -> str:
 
 
 # ---------------------------------------------------------------------------
+# Augments
+# ---------------------------------------------------------------------------
+
+@mcp.tool()
+async def list_augments(shield: str = "", sort_by: str = "") -> str:
+    """
+    List all augments with their inventory slots, weight limit, shield
+    compatibility, and perk.
+
+    shield: filter by shield type — Light, Medium, or Heavy (case-insensitive).
+    sort_by: 'slots' to sort by main inventory count, 'weight' to sort by
+             weight limit. Default: grouped by tier (Combat, Looting, Tactical).
+    """
+    augments = list(client.AUGMENTS)
+
+    # Filter by shield compatibility
+    if shield:
+        shield_q = shield.strip().title()
+        augments = [a for a in augments if shield_q in a["shields"]]
+        if not augments:
+            return f"No augments found compatible with '{shield}' shield."
+
+    # Sort
+    if sort_by.lower() == "slots":
+        augments = sorted(augments, key=lambda a: a["slots"], reverse=True)
+    elif sort_by.lower() == "weight":
+        augments = sorted(augments, key=lambda a: a["weight_limit"], reverse=True)
+
+    lines = ["## Augments"]
+    if shield:
+        lines[0] += f" (compatible with {shield.title()} shield)"
+    if sort_by:
+        lines[0] += f" — sorted by {sort_by}"
+
+    for aug in augments:
+        shields_str = ", ".join(aug["shields"])
+        slot_str = f"{aug['slots']} slots  |  {aug['quick_use']} quick-use"
+        if aug["safe_pocket"]:
+            slot_str += f"  |  {aug['safe_pocket']} safe pocket"
+        if aug["special"]:
+            slot_str += f"  |  {aug['special']}"
+
+        lines.append(f"\n### {aug['name']}")
+        lines.append(f"**Weight limit:** {aug['weight_limit']} kg  |  **Shields:** {shields_str}")
+        lines.append(f"**Inventory:** {slot_str}")
+        if aug["perk"]:
+            lines.append(f"**Perk:** {aug['perk']}")
+
+    return "\n".join(lines)
+
+
+# ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
 
