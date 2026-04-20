@@ -765,29 +765,26 @@ async def get_trader_inventory(trader_name: str = "") -> str:
         return f"Trader '{trader_name}' not found. Available: {', '.join(all_traders)}"
 
     trader = filtered[0].get("trader", trader_name)
-    lines = [f"## {trader}'s Barter Trades", ""]
 
+    # Group trades by received item ID so multiple acquisition methods collapse together
+    grouped: dict[str, dict] = {}
     for trade in filtered:
         recv_id = trade.get("itemId", "")
-        recv_qty = trade.get("quantity", 1)
-        cost = trade.get("cost", {})
-        cost_id = cost.get("itemId", "")
-        cost_qty = cost.get("quantity", 1)
-        daily_limit = trade.get("dailyLimit")
-        req_level = trade.get("requiredLevel")
+        if recv_id not in grouped:
+            grouped[recv_id] = {"trade": trade, "costs": []}
+        grouped[recv_id]["costs"].append(trade)
 
+    lines = [f"## {trader}'s Barter Trades", ""]
+
+    for recv_id, group in grouped.items():
+        recv_qty = group["trade"].get("quantity", 1)
         recv_item = await client.arcdata_item(recv_id)
         recv_name = client.name_en(recv_item) if recv_item else recv_id
         recv_val = recv_item.get("value", 0) if recv_item else 0
 
-        if cost_id in ("coins", "creds"):
-            cost_str = f"{cost_qty:,} {cost_id}"
-        else:
-            cost_item = await client.arcdata_item(cost_id)
-            cost_name = client.name_en(cost_item) if cost_item else cost_id
-            cost_val = cost_item.get("value", 0) if cost_item else 0
-            cost_str = f"{cost_qty}x {cost_name} ({_coins(cost_qty * cost_val)} value)"
-
+        # Collect extras from any trade in the group
+        req_level = next((t.get("requiredLevel") for t in group["costs"] if t.get("requiredLevel")), None)
+        daily_limit = next((t.get("dailyLimit") for t in group["costs"] if t.get("dailyLimit")), None)
         extras = []
         if daily_limit:
             extras.append(f"limit {daily_limit}/day")
@@ -795,7 +792,20 @@ async def get_trader_inventory(trader_name: str = "") -> str:
             extras.append(f"level {req_level}+")
         extra_str = f" [{', '.join(extras)}]" if extras else ""
 
-        lines.append(f"  - Give {cost_str} -> Get {recv_qty}x **{recv_name}** ({_coins(recv_val)}){extra_str}")
+        lines.append(f"  - **{recv_qty}x {recv_name}** ({_coins(recv_val)}){extra_str}")
+
+        for trade in group["costs"]:
+            cost = trade.get("cost", {})
+            cost_id = cost.get("itemId", "")
+            cost_qty = cost.get("quantity", 1)
+            if cost_id in ("coins", "creds"):
+                cost_str = f"{cost_qty:,} {cost_id}"
+            else:
+                cost_item = await client.arcdata_item(cost_id)
+                cost_name = client.name_en(cost_item) if cost_item else cost_id
+                cost_val = cost_item.get("value", 0) if cost_item else 0
+                cost_str = f"{cost_qty}x {cost_name} ({_coins(cost_qty * cost_val)} value)"
+            lines.append(f"    - {cost_str}")
 
     return "\n".join(lines)
 
