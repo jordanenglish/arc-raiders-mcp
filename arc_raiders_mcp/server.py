@@ -468,9 +468,11 @@ async def get_quest(name: str) -> str:
     if prev_ids or next_ids:
         lines.append("")
     if prev_ids:
-        lines.append(f"**Requires completing:** {', '.join(prev_ids)}")
+        prev_names = [client.name_en(all_quests[qid]) if qid in all_quests else qid for qid in prev_ids]
+        lines.append(f"**Requires completing:** {', '.join(prev_names)}")
     if next_ids:
-        lines.append(f"**Unlocks:** {', '.join(next_ids)}")
+        next_names = [client.name_en(all_quests[qid]) if qid in all_quests else qid for qid in next_ids]
+        lines.append(f"**Unlocks:** {', '.join(next_names)}")
 
     return "\n".join(lines)
 
@@ -568,6 +570,66 @@ async def get_enemy(name: str) -> str:
         lines += ["", "### Behavior", behavior]
     if combat_tips:
         lines += ["", "### Combat Tips", combat_tips]
+
+    return "\n".join(lines)
+
+
+@mcp.tool()
+async def find_quests_for_item(name: str) -> str:
+    """
+    Find which quests reward a given item, and which quests mention it
+    in their objectives (so you know whether to keep it 'found in raid').
+
+    Useful for "should I keep this item?" questions.
+    """
+    ardb_list = await client.ardb_items()
+    match = client.find_best_match(name, ardb_list)
+    if not match:
+        return f"Item '{name}' not found."
+
+    target_id = match["id"]
+    target_name = client.name_en(match)
+    target_lower = target_name.lower()
+
+    all_quests = await client.get_all_quests()
+
+    reward_quests = []
+    objective_quests = []
+
+    for quest_id, quest in all_quests.items():
+        quest_name = client.name_en(quest)
+        trader = quest.get("trader", "?")
+
+        # Check rewards (exact item ID match)
+        for r in quest.get("rewardItemIds", []):
+            if r.get("itemId") == target_id:
+                reward_quests.append((quest_name, trader, r.get("quantity", 1)))
+                break
+
+        # Check objectives (text match on English string)
+        for obj in quest.get("objectives", []):
+            obj_text = obj.get("en", "") if isinstance(obj, dict) else str(obj)
+            if target_lower in obj_text.lower():
+                objective_quests.append((quest_name, trader, obj_text))
+                break
+
+    lines = [f"## Quests for: {target_name}", ""]
+
+    if objective_quests:
+        lines.append(f"**Required in {len(objective_quests)} quest objective(s):**")
+        for quest_name, trader, obj_text in objective_quests:
+            lines.append(f"  - **{quest_name}** ({trader}): _{obj_text}_")
+    else:
+        lines.append("Not mentioned in any quest objectives.")
+
+    lines.append("")
+
+    if reward_quests:
+        lines.append(f"**Rewarded by {len(reward_quests)} quest(s):**")
+        for quest_name, trader, qty in reward_quests:
+            lines.append(f"  - **{quest_name}** ({trader}): {qty}x")
+    else:
+        lines.append("Not given as a reward by any quest.")
 
     return "\n".join(lines)
 
@@ -741,6 +803,57 @@ def _calc_shots_and_ttk(
 
     ttk = (shots - 1) * (60.0 / fire_rate) if fire_rate > 0 else 0.0
     return shots, ttk
+
+
+@mcp.tool()
+async def explain_shields() -> str:
+    """
+    Explain how player shields work in Arc Raiders: shield types, mitigation
+    percentages, charge values, and how damage is calculated. Useful for
+    understanding which shield to use and how TTK changes against shielded players.
+    """
+    lines = [
+        "## How Player Shields Work",
+        "",
+        "Shields in Arc Raiders add a rechargeable buffer in front of your 100 HP.",
+        "They recharge automatically over time; HP requires bandages to restore.",
+        "",
+        "### Shield Types",
+        "",
+        "| Shield | Charge | Mitigation | Notes |",
+        "|--------|--------|-----------|-------|",
+        "| None | 0 | 0% | Bare HP only |",
+        "| Light | 40 | 40% | Low barrier, fast recharge |",
+        "| Medium | 70 | 42.5% | Most common in PvP |",
+        "| Heavy | 80 | 52.5% | Highest mitigation, slowest recharge |",
+        "",
+        "### Damage Mechanics",
+        "",
+        "While your shield charge is above 0:",
+        "- Your **HP takes mitigated damage**: `base_damage x (1 - mitigation)`",
+        "- Your **shield charge drops by the full base damage** (no mitigation on the shield itself)",
+        "- The shield depletes faster than your HP loses health",
+        "",
+        "Once charge hits 0, the shield is gone and all damage goes straight to HP at full value.",
+        "",
+        "**Headshot multiplier** applies only to HP damage, not to shield charge drain.",
+        "",
+        "### Key Insight: ARC Armor Penetration",
+        "",
+        "Weapon armor penetration (None/Low/Medium/High/Very High) **only affects ARC robot armor**.",
+        "It does nothing against player shields. A weapon with 'Very High' armor pen",
+        "has the same shield performance as one with 'None'.",
+        "",
+        "### Example: Anvil IV (40 damage) vs Medium Shield",
+        "",
+        "- Shot 1: HP takes 40 x (1 - 0.425) = 23 damage. Shield drops 40 (charge: 70 -> 30).",
+        "- Shot 2: HP takes 23 damage. Shield drops 40 (charge: 30 -> 0, shield breaks).",
+        "- Shot 3+: Full 40 damage to HP per shot. 2 more shots to kill.",
+        "- Total: 4 shots to kill (body). With headshots (2.5x mult): 2 shots.",
+        "",
+        "Use `get_ttk` for exact shots-to-kill and timing against any weapon.",
+    ]
+    return "\n".join(lines)
 
 
 @mcp.tool()

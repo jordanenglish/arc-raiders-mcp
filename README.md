@@ -42,6 +42,12 @@ An [MCP (Model Context Protocol)](https://modelcontextprotocol.io) server that g
 
 ---
 
+### "Should I keep this ARC Alloy or recycle it?"
+
+> Keep it. ARC Alloy is required by **Clearer Skies** (Shani) - you need 3 for that quest objective. It's also used in several crafting recipes. If you don't need it right now, it recycles into components worth more than its 200-coin sell value.
+
+---
+
 ### "Does armor penetration affect player shields?"
 
 > No. ARC armor penetration only applies to ARC robot armor. Against player shields, what matters is base damage, headshot multiplier, and fire rate. The Bettina's "strong" armor penetration does nothing in PVP - which is why despite its high fire rate, it takes 10 shots and 16.88s to kill a medium shield player.
@@ -116,12 +122,14 @@ Or add it manually to your Claude Code config:
 | `get_item` | Full item details: description, sell/recycle/salvage values, vendor prices, crafting recipe, weapon stats, and headshot multiplier. |
 | `get_crafting_recipe` | Ingredients, station, level required, and profitability vs buying raw materials. |
 | `find_uses_for_item` | Reverse lookup: which recipes need this item, which traders accept it in barters. |
+| `find_quests_for_item` | Which quests require this item in objectives, and which quests reward it. Great for "should I keep this?" decisions. |
 | `get_quest` | Objectives, item rewards, XP, and position in the quest chain. |
 | `get_enemy` | Enemy stats (HP, armor, threat, weakness), XP rewards, spawn maps, and loot drops. |
 | `get_hideout_module` | Per-level upgrade requirements and total material cost for each hideout station. |
 | `get_trader_inventory` | Barter trades for a given trader (Lance, Celeste, Shani, Tian Wen, Apollo). |
 | `list_weapons` | All weapons with damage, headshot multiplier, fire rate, range, stability, armor pen, and sell value. Filter by type. |
 | `get_ttk` | Time-to-kill for any weapon against all four shield types (none/light/medium/heavy), for both body shots and headshots. Uses the exact damage formula from arcraiders.wiki. |
+| `explain_shields` | How shields work: mitigation percentages, charge mechanics, damage formula, and why ARC armor penetration does nothing in PvP. |
 
 ---
 
